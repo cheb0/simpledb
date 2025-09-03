@@ -122,6 +122,71 @@ impl Planner {
         Ok(1)
     }
 
+    fn execute_update_statement(
+        &self,
+        table_name: &str,
+        fields: &[String],
+        values: &[crate::query::Constant],
+        predicate: Option<crate::query::Predicate>,
+        tx: Transaction<'_>,
+    ) -> DbResult<i32> {
+        let layout = self.metadata_mgr.get_layout(table_name, tx.clone())?;
+        let mut scan = TableScan::new(tx.clone(), table_name, layout)?;
+
+        let index_info_map = self.metadata_mgr.get_index_info(table_name, tx.clone())?;
+        let mut indexes: Vec<(String, crate::index::BTreeIndex)> = Vec::new();
+        
+        for field in fields {
+            if let Some(index_info) = index_info_map.get(field) {
+                let index = index_info.open(tx.clone())?;
+                indexes.push((field.clone(), index));
+            }
+        }
+
+        let mut affected_rows = 0;
+
+        if let Some(pred) = predicate {
+            // TODO use index to find by predicate
+            scan.before_first()?;
+            while scan.next()? {
+                if pred.is_satisfied(&mut scan)? {
+                    for (field, value) in fields.iter().zip(values.iter()) {
+                        let old_value = scan.get_val(field)?;
+                        scan.set_val(field, value.clone())?;
+                        
+                        if let Some((_, index)) = indexes.iter_mut().find(|(f, _)| f == field) {
+                            let rid = scan.get_rid()?;
+                            index.delete(&old_value, &rid)?;
+                            index.insert(value, &rid)?;
+                        }
+                    }
+                    affected_rows += 1;
+                }
+            }
+        } else {
+            // UPDATE every row in table
+            scan.before_first()?;
+            while scan.next()? {
+                for (field, value) in fields.iter().zip(values.iter()) {
+                    let old_value = scan.get_val(field)?;
+                    scan.set_val(field, value.clone())?;
+                    
+                    if let Some((_, index)) = indexes.iter_mut().find(|(f, _)| f == field) {
+                        let rid = scan.get_rid()?;
+                        index.delete(&old_value, &rid)?;
+                        index.insert(value, &rid)?;
+                    }
+                }
+                affected_rows += 1;
+            }
+        }
+
+        for (_, mut index) in indexes {
+            index.close();
+        }
+        Ok(affected_rows)
+    }
+
     fn execute_create_table(
         &self,
         table_name: &str,
@@ -143,43 +208,6 @@ impl Planner {
             .create_index(name, table_name, column, tx)?;
         Ok(1)
     }
-
-    fn execute_update_statement(
-        &self,
-        table_name: &str,
-        fields: &[String],
-        values: &[crate::query::Constant],
-        predicate: Option<crate::query::Predicate>,
-        tx: Transaction<'_>,
-    ) -> DbResult<i32> {
-        let layout = self.metadata_mgr.get_layout(table_name, tx.clone())?;
-        let mut scan = TableScan::new(tx.clone(), table_name, layout)?;
-
-        let mut affected_rows = 0;
-
-        // TODO use index to find by predicate
-        if let Some(pred) = predicate {
-            scan.before_first()?;
-            while scan.next()? {
-                if pred.is_satisfied(&mut scan)? {
-                    for (field, value) in fields.iter().zip(values.iter()) {
-                        scan.set_val(field, value.clone())?;
-                    }
-                    affected_rows += 1;
-                }
-            }
-        } else {
-            scan.before_first()?;
-            while scan.next()? {
-                for (field, value) in fields.iter().zip(values.iter()) {
-                    scan.set_val(field, value.clone())?;
-                }
-                affected_rows += 1;
-            }
-        }
-
-        Ok(affected_rows)
-    }
 }
 
 #[cfg(test)]
@@ -193,6 +221,92 @@ mod tests {
     };
 
     #[test]
+    fn test_execute_update_with_index_maintenance() -> DbResult<()> {
+        let db = temp_db()?;
+
+        let mut schema = Schema::new();
+        schema.add_int_field("id");
+        schema.add_string_field("name", 20);
+        schema.add_int_field("age");
+
+        {
+            let tx = db.new_tx()?;
+            db.planner().execute_update(
+                "CREATE TABLE test_table(id int, name VARCHAR(20), age int)",
+                tx.clone(),
+            )?;
+            tx.commit()?;
+        }
+
+        {
+            let tx = db.new_tx()?;
+            db.planner().execute_update(
+                "CREATE INDEX age_idx ON test_table (age)",
+                tx.clone(),
+            )?;
+            tx.commit()?;
+        }
+
+        {
+            let tx = db.new_tx()?;
+            for i in 1..=5 {
+                let insert_sql = format!(
+                    "INSERT INTO test_table(id, name, age) VALUES({}, 'Person{}', {})",
+                    i, i, 20 + i
+                );
+                db.planner().execute_update(&insert_sql, tx.clone())?;
+            }
+            tx.commit()?;
+        }
+
+        {
+            let tx = db.new_tx()?;
+            let result = db.planner().execute_update(
+                "UPDATE test_table SET age = 30 WHERE id = 3",
+                tx.clone(),
+            )?;
+            assert_eq!(result, 1, "Should update 1 record");
+            tx.commit()?;
+        }
+        {
+            let tx = db.new_tx()?;
+            let result = db.planner().execute_update(
+                "UPDATE test_table SET age = 30 WHERE id = 5",
+                tx.clone(),
+            )?;
+            assert_eq!(result, 1, "Should update 1 record");
+            tx.commit()?;
+        }
+
+        {
+            let tx = db.new_tx()?;
+            let plan = db.planner().create_query_plan("SELECT id, name, age FROM test_table", tx.clone())?;
+            let mut scan = plan.open(tx.clone());
+            scan.before_first()?;
+
+            let mut results = Vec::new();
+            while scan.next()? {
+                let id = scan.get_int("id")?;
+                let name = scan.get_string("name")?;
+                let age = scan.get_int("age")?;
+                results.push((id, name, age));
+            }
+
+            assert_eq!(results.len(), 5);
+            let expected = vec![
+                (1, "Person1".to_string(), 21),
+                (2, "Person2".to_string(), 22),
+                (3, "Person3".to_string(), 30),
+                (4, "Person4".to_string(), 24),
+                (5, "Person5".to_string(), 30),
+            ];
+            assert_eq!(results, expected);
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    #[test]
     fn test_execute_insert_with_index_maintenance() -> DbResult<()> {
         let db = temp_db()?;
 
@@ -203,10 +317,8 @@ mod tests {
 
         let tx = db.new_tx()?;
 
-        db.metadata_mgr()
-            .create_table("test_table", &schema, tx.clone())?;
-        db.metadata_mgr()
-            .create_index("age_idx", "test_table", "age", tx.clone())?;
+        db.metadata_mgr().create_table("test_table", &schema, tx.clone())?;
+        db.metadata_mgr().create_index("age_idx", "test_table", "age", tx.clone())?;
 
         let insert_sql = "INSERT INTO test_table (id, name, age) VALUES (1, 'Alice', 25)";
         let result = db.planner().execute_update(insert_sql, tx.clone())?;
@@ -250,10 +362,8 @@ mod tests {
 
         let tx = db.new_tx()?;
 
-        db.metadata_mgr()
-            .create_table("test_table", &schema, tx.clone())?;
-        db.metadata_mgr()
-            .create_index("name_idx", "test_table", "name", tx.clone())?;
+        db.metadata_mgr().create_table("test_table", &schema, tx.clone())?;
+        db.metadata_mgr().create_index("name_idx", "test_table", "name", tx.clone())?;
 
         let result = db.planner().execute_update(
             &format!("INSERT INTO test_table (id, name, age) VALUES (1, 'Bob', 30)"),
@@ -289,8 +399,7 @@ mod tests {
         schema.add_int_field("age");
 
         let tx = db.new_tx()?;
-        db.metadata_mgr()
-            .create_table("test_table", &schema, tx.clone())?;
+        db.metadata_mgr().create_table("test_table", &schema, tx.clone())?;
 
         let result = db.planner().execute_update(
             &format!("INSERT INTO test_table (id, name, age) VALUES (1, 'Charlie', 35)"),
@@ -316,8 +425,7 @@ mod tests {
 
         let tx = db.new_tx()?;
 
-        db.metadata_mgr()
-            .create_table("test_table", &schema, tx.clone())?;
+        db.metadata_mgr().create_table("test_table", &schema, tx.clone())?;
 
         let result = db
             .planner()
