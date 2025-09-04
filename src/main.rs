@@ -1,4 +1,4 @@
-use simpledb::{DbResult, SimpleDB};
+use simpledb::{server::Config, DbResult, SimpleDB};
 use tempfile::TempDir;
 
 fn insert_some_rows(db: &SimpleDB) -> DbResult<()> {
@@ -19,7 +19,9 @@ fn main() -> DbResult<()> {
     let temp_dir = TempDir::new().unwrap();
     println!("Test database directory: {:?}", temp_dir.path());
     
-    let db = SimpleDB::new(temp_dir.path())?;
+    let mut cfg = Config::file(temp_dir.path());
+    cfg = cfg.buffer_capacity(128);
+    let db = SimpleDB::with_config(cfg)?;
     let planner = db.planner();
 
     {
@@ -41,6 +43,7 @@ fn main() -> DbResult<()> {
 
     insert_some_rows(&db).unwrap();
 
+    let start_time = std::time::Instant::now();
     {
         let tx = db.new_write_tx()?;
         db.planner().execute_update(
@@ -65,6 +68,8 @@ fn main() -> DbResult<()> {
         )?;
         tx.commit()?;
     }
+    let duration = start_time.elapsed();
+    println!("Insert took {} us", duration.as_micros());
 
     Ok(())
 }
