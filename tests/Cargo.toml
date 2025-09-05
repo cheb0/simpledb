@@ -6,5 +6,4 @@ edition = "2024"
 [dependencies]
 simpledb = { path = ".." }
 tempfile = "3.3.0"
-
-[workspace]
+rstest = "0.26.1"

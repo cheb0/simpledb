@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
     use simpledb::server::config::StorageMgrConfig;
     use simpledb::server::Config;
     use simpledb::{DbResult, SimpleDB};
@@ -7,8 +8,10 @@ mod tests {
     use std::thread;
     use tempfile::TempDir;
 
-    #[test]
-    fn test_multithreaded_inserts_and_count() -> DbResult<()> {
+    #[rstest]
+    #[case("false")]
+    #[case("true")]
+    fn test_multithreaded_inserts_and_count(#[case] use_index: bool) -> DbResult<()> {
         let temp_dir = TempDir::new().unwrap();
         let mut cfg = Config::new(StorageMgrConfig::file(temp_dir.path()));
         let db = Arc::new(SimpleDB::with_config(cfg)?);
@@ -20,6 +23,12 @@ mod tests {
                 "CREATE TABLE persons(id int, name VARCHAR(20), age int)",
                 tx.clone(),
             )?;
+            tx.commit()?;
+        }
+
+        if use_index {
+            let tx = db.new_tx()?;
+            planner.execute_update("CREATE INDEX id_idx ON persons (id)", tx.clone());
             tx.commit()?;
         }
 
