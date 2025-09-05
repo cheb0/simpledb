@@ -87,9 +87,9 @@ impl<'tx> BTreePage<'tx> {
             current_slot += 1;
         }
         if current_slot == 0 {
-            return Ok(None);
+            Ok(None)
         } else {
-            return Ok(Some(current_slot - 1));
+            Ok(Some(current_slot - 1))
         }
     }
 
@@ -110,7 +110,7 @@ impl<'tx> BTreePage<'tx> {
     /// into a new page and then returns the [BlockId] of the new page
     /// The current page continues to be the same, but with fewer records
     pub fn split(&self, slot: usize, page_type: PageType) -> DbResult<BlockId> {
-        let block_id = self.tx.append(&self.block_id.file_name())?;
+        let block_id = self.tx.append(self.block_id.file_name())?;
         let new_btree_page =
             BTreePage::new(self.tx.clone(), block_id.clone(), self.layout.clone())?;
         new_btree_page.format(page_type)?;
@@ -283,7 +283,7 @@ impl<'tx> BTreePage<'tx> {
             .layout
             .schema()
             .field_type(field_name)
-            .ok_or_else(|| format!("Field {} not found in schema", field_name))
+            .ok_or_else(|| format!("Field {field_name} not found in schema"))
             .unwrap();
         match field_type {
             FieldType::Integer => {
@@ -302,7 +302,7 @@ impl<'tx> BTreePage<'tx> {
             .layout
             .schema()
             .field_type(field_name)
-            .ok_or_else(|| format!("Field {} not found in schema", field_name))
+            .ok_or_else(|| format!("Field {field_name} not found in schema"))
             .unwrap();
 
         // Check if value type matches schema
@@ -344,20 +344,20 @@ impl Drop for BTreePage<'_> {
 impl std::fmt::Display for BTreePage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_flag() {
-            Ok(flag) => writeln!(f, "Page Type: {:?}", flag)?,
-            Err(e) => writeln!(f, "Error getting flag: {}", e)?,
+            Ok(flag) => writeln!(f, "Page Type: {flag:?}")?,
+            Err(e) => writeln!(f, "Error getting flag: {e}")?,
         }
 
         match self.get_number_of_recs() {
             Ok(count) => {
-                writeln!(f, "Record Count: {}", count)?;
+                writeln!(f, "Record Count: {count}")?;
                 match self.get_flag() {
                     Ok(PageType::Internal(_)) => {
                         for slot in 0..count {
                             if let (Ok(key), Ok(child)) =
                                 (self.get_data_value(slot), self.get_child_block_num(slot))
                             {
-                                writeln!(f, "Slot {}: Key={:?}, Child Block={}", slot, key, child)?;
+                                writeln!(f, "Slot {slot}: Key={key:?}, Child Block={child}")?;
                             }
                         }
                     }
@@ -377,10 +377,10 @@ impl std::fmt::Display for BTreePage<'_> {
                             }
                         }
                     }
-                    Err(e) => writeln!(f, "Error getting page type: {}", e)?,
+                    Err(e) => writeln!(f, "Error getting page type: {e}")?,
                 }
             }
-            Err(e) => writeln!(f, "Error getting record count: {}", e)?,
+            Err(e) => writeln!(f, "Error getting record count: {e}")?,
         }
         Ok(())
     }
@@ -426,7 +426,7 @@ mod tests {
         page.format(PageType::Leaf(None))?;
 
         let rid = RID::new(1, 1);
-        page.insert_leaf(0, Constant::Int(10), rid.clone())?;
+        page.insert_leaf(0, Constant::Int(10), rid)?;
 
         assert_eq!(page.get_number_of_recs()?, 1);
         assert_eq!(page.get_data_value(0)?, Constant::Int(10));

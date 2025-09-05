@@ -86,6 +86,7 @@ impl FileStorageMgr {
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(file_path)?;
 
             open_files.insert(filename.to_string(), file);
@@ -118,7 +119,7 @@ impl FileStorageMgr {
 
 impl StorageMgr for FileStorageMgr {
     fn read(&self, blk: &BlockId, page: &mut Page) -> io::Result<()> {
-        let mut file = self.get_file(&blk.file_name())?;
+        let mut file = self.get_file(blk.file_name())?;
         let pos = blk.number() as u64 * self.block_size as u64;
         file.seek(SeekFrom::Start(pos))?;
 
@@ -129,7 +130,7 @@ impl StorageMgr for FileStorageMgr {
     }
 
     fn write(&self, blk: &BlockId, page: &Page) -> io::Result<()> {
-        let mut file = self.get_file(&blk.file_name())?;
+        let mut file = self.get_file(blk.file_name())?;
         let pos = blk.number() as u64 * self.block_size as u64;
         file.seek(SeekFrom::Start(pos))?;
 
@@ -144,7 +145,7 @@ impl StorageMgr for FileStorageMgr {
         let new_block_num = self.block_cnt(filename)?;
         let blk = BlockId::new(filename.to_string(), new_block_num);
 
-        let mut file = self.get_file(&blk.file_name())?;
+        let mut file = self.get_file(blk.file_name())?;
         let pos = blk.number() as u64 * self.block_size as u64;
         file.seek(SeekFrom::Start(pos))?;
 
@@ -247,7 +248,7 @@ impl StorageMgr for MemStorageMgr {
 
     fn append(&self, filename: &str) -> io::Result<BlockId> {
         let mut files = self.files.lock().unwrap();
-        let blocks = files.entry(filename.to_string()).or_insert_with(Vec::new);
+        let blocks = files.entry(filename.to_string()).or_default();
 
         let new_block_num = blocks.len() as i32;
         let new_block = vec![0; self.block_size];

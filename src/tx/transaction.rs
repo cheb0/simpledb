@@ -56,7 +56,7 @@ impl<'a> Transaction<'a> {
         let bytes = start_record.to_bytes()?;
         log_mgr.append(&bytes)?;
 
-        let buffers = BufferList::new(&buffer_mgr);
+        let buffers = BufferList::new(buffer_mgr);
 
         let inner = TransactionInner {
             buffer_mgr,
@@ -151,7 +151,7 @@ impl<'a> Transaction<'a> {
         let guard = tx_inner
             .buffers
             .get_buffer(blk)
-            .expect(&format!("Block {blk} not pinned"));
+            .unwrap_or_else(|| panic!("Block {blk} not pinned"));
         let buffer = guard.borrow();
         Ok(buffer.page().get_int(offset))
     }
@@ -168,7 +168,7 @@ impl<'a> Transaction<'a> {
         let guard = tx_inner
             .buffers
             .get_buffer(blk)
-            .expect(&format!("Buffer {blk} not pinned"));
+            .unwrap_or_else(|| panic!("Buffer {blk} not pinned"));
         let buffer = guard.borrow();
         Ok(buffer.page().get_string(offset))
     }
@@ -186,7 +186,7 @@ impl<'a> Transaction<'a> {
         let guard = tx_inner
             .buffers
             .get_buffer(blk)
-            .expect(&format!("Block {blk} not pinned"));
+            .unwrap_or_else(|| panic!("Block {blk} not pinned"));
         let mut buffer = guard.borrow_mut();
 
         if log {
@@ -214,7 +214,7 @@ impl<'a> Transaction<'a> {
         let guard = tx_inner
             .buffers
             .get_buffer(blk)
-            .expect(&format!("Block {blk} not pinned"));
+            .unwrap_or_else(|| panic!("Block {blk} not pinned"));
         let mut buffer = guard.borrow_mut();
 
         if log {

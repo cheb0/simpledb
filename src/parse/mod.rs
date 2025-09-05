@@ -49,7 +49,7 @@ impl Parser {
 
     pub fn parse(&self, sql: &str) -> DbResult<Statement> {
         let ast = SqlParser::parse_sql(&self.dialect, sql)
-            .map_err(|e| DbError::Schema(format!("Failed to parse SQL: {}", e)))?;
+            .map_err(|e| DbError::Schema(format!("Failed to parse SQL: {e}")))?;
 
         if ast.is_empty() {
             return Err(DbError::Schema("Empty SQL statement".to_string()));
@@ -173,7 +173,7 @@ impl Parser {
                                 Value::SingleQuotedString(s) => Ok(Constant::String(s.clone())),
                                 Value::Number(n, _) => {
                                     Ok(Constant::Int(n.parse().map_err(|_| {
-                                        DbError::Schema(format!("Invalid integer value: {}", n))
+                                        DbError::Schema(format!("Invalid integer value: {n}"))
                                     })?))
                                 }
                                 _ => Err(DbError::Schema(format!("Unsupported value type"))),
@@ -222,7 +222,7 @@ impl Parser {
                     sqlparser::ast::Expr::Value(value) => match &value.value {
                         Value::SingleQuotedString(s) => Ok(Constant::String(s.clone())),
                         Value::Number(n, _) => Ok(Constant::Int(n.parse().map_err(|_| {
-                            DbError::Schema(format!("Invalid integer value: {}", n))
+                            DbError::Schema(format!("Invalid integer value: {n}"))
                         })?)),
                         _ => Err(DbError::Schema(
                             "Unsupported value type in UPDATE".to_string(),
@@ -319,7 +319,7 @@ impl Parser {
                         sqlparser::ast::Expr::Value(value) => match &value.value {
                             Value::SingleQuotedString(s) => Constant::String(s.clone()),
                             Value::Number(n, _) => Constant::Int(n.parse().map_err(|_| {
-                                DbError::Schema(format!("Invalid integer value: {}", n))
+                                DbError::Schema(format!("Invalid integer value: {n}"))
                             })?),
                             _ => {
                                 return Err(DbError::Schema(

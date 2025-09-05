@@ -57,14 +57,14 @@ impl TableMgr {
             for fldname in sch.fields() {
                 fcat.insert()?;
                 fcat.set_string("tblname", tblname)?;
-                fcat.set_string("fldname", &fldname)?;
-                let type_value = match sch.field_type(&fldname).unwrap() {
+                fcat.set_string("fldname", fldname)?;
+                let type_value = match sch.field_type(fldname).unwrap() {
                     FieldType::Integer => 0,
                     FieldType::Varchar => 1,
                 };
                 fcat.set_int("type", type_value)?;
-                fcat.set_int("length", sch.length(&fldname).unwrap_or(0) as i32)?;
-                fcat.set_int("offset", layout.offset(&fldname).unwrap_or(0) as i32)?;
+                fcat.set_int("length", sch.length(fldname).unwrap_or(0) as i32)?;
+                fcat.set_int("offset", layout.offset(fldname).unwrap_or(0) as i32)?;
             }
         }
 
@@ -99,7 +99,7 @@ impl TableMgr {
                 let field_type = match fldtype {
                     0 => FieldType::Integer,
                     1 => FieldType::Varchar,
-                    _ => panic!("Unknown field type: {}", fldtype),
+                    _ => panic!("Unknown field type: {fldtype}"),
                 };
                 sch.add_field(&fldname, field_type, fldlen as usize);
             }

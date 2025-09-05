@@ -13,7 +13,7 @@ mod tests {
     #[case("true")]
     fn test_multithreaded_inserts_and_count(#[case] use_index: bool) -> DbResult<()> {
         let temp_dir = TempDir::new().unwrap();
-        let mut cfg = Config::new(StorageMgrConfig::file(temp_dir.path()));
+        let cfg = Config::new(StorageMgrConfig::file(temp_dir.path()));
         let db = Arc::new(SimpleDB::with_config(cfg)?);
         let planner = db.planner();
 
@@ -28,7 +28,7 @@ mod tests {
 
         if use_index {
             let tx = db.new_tx()?;
-            planner.execute_update("CREATE INDEX id_idx ON persons (id)", tx.clone());
+            planner.execute_update("CREATE INDEX id_idx ON persons (id)", tx.clone())?;
             tx.commit()?;
         }
 

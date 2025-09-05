@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Instant, Duration};
 use tempfile::TempDir;
-use rand::Rng;
 
 const NUM_PERSONS: usize = 10_000;
 const NUM_READERS: usize = 8;
@@ -90,11 +89,7 @@ pub fn run_stress_test(db_ptr: Arc<SimpleDB>) -> DbResult<StressTestResults> {
             for op in 0..WRITE_OPERATIONS {
                 let new_id = NUM_PERSONS + 1 + op + (writer_id * WRITE_OPERATIONS);
                 let new_age = 18 + (new_id % 62);
-                let new_name = format!("Person{}", new_id);
-                let insert_sql = format!(
-                    "INSERT INTO Person (id, age, name) VALUES ({}, {}, '{}')",
-                    new_id, new_age, new_name
-                );
+                let insert_sql = format!("INSERT INTO Person (id, age, name) VALUES ({new_id}, {new_age}, 'Person{new_id}')");
 
                 let tx = db.new_write_tx().unwrap();
                 

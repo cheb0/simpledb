@@ -110,7 +110,7 @@ impl BufferMgr {
 
             let mut buffer = self.buffers[idx].write().unwrap();
             if let Some(block) = buffer.block() {
-                inner.block_to_buffer_idx.remove(&block);
+                inner.block_to_buffer_idx.remove(block);
             }
             buffer.assign_to_block(blk.clone())?;
 
@@ -179,7 +179,7 @@ mod tests {
         fn new(buffer_count: usize) -> DbResult<Self> {
             let temp_dir = TempDir::new().unwrap();
             let storage_mgr: Arc<dyn StorageMgr> =
-                Arc::new(FileStorageMgr::new(temp_dir.path().to_path_buf(), 400)?);
+                Arc::new(FileStorageMgr::new(temp_dir.path(), 400)?);
             let log_mgr = Arc::new(LogMgr::new(Arc::clone(&storage_mgr), "testlog")?);
             let buffer_mgr = Arc::new(BufferMgr::new(
                 Arc::clone(&storage_mgr),
@@ -414,7 +414,7 @@ mod tests {
                 // Expected
             }
             Ok(_) => panic!("Expected BufferAbort error"),
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         }
 
         drop(guard1);

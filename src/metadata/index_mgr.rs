@@ -35,8 +35,8 @@ impl IndexMgr {
         let layout = table_mgr.get_layout(IndexMgr::INDEX_TABLE, tx)?;
         let table_mgr = Arc::clone(&table_mgr);
         Ok(IndexMgr {
-            layout: layout,
-            table_mgr: table_mgr,
+            layout,
+            table_mgr,
         })
     }
 

@@ -53,10 +53,6 @@ impl ConcurrencyMgr {
         }
         self.locks.clear();
     }
-
-    fn has_exclusive_lock(&self, blk: &BlockId) -> bool {
-        matches!(self.locks.get(blk), Some(LockType::Exclusive))
-    }
 }
 
 #[cfg(test)]
@@ -199,7 +195,7 @@ mod tests {
                 
                 for op_num in 0..OPERATIONS_PER_THREAD {
                     let block_num = rng.random_range(0..NUM_BLOCKS);
-                    let blk = BlockId::new(format!("mixed_file_{}", thread_id), block_num as i32);
+                    let blk = BlockId::new(format!("mixed_file_{thread_id}"), block_num as i32);
                     
                     let use_exclusive = op_num % 3 == 0;
                     

@@ -60,7 +60,7 @@ impl Schema {
 
     pub fn add_all(&mut self, other: &Schema) {
         for field_name in &other.fields {
-            self.add_from_schema(&field_name, other);
+            self.add_from_schema(field_name, other);
         }
     }
 
@@ -78,6 +78,12 @@ impl Schema {
 
     pub fn length(&self, field_name: &str) -> Option<usize> {
         self.info.get(field_name).map(|info| info.length)
+    }
+}
+
+impl Default for Schema {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

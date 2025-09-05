@@ -26,11 +26,11 @@ impl<'a> BufferList<'a> {
     }
 
     pub fn pin(&mut self, blk: &BlockId) -> DbResult<()> {
-        if let Some(count) = self.pins.get_mut(&blk) {
+        if let Some(count) = self.pins.get_mut(blk) {
             *count += 1;
             return Ok(());
         }
-        let guard = self.buffer_mgr.pin(&blk)?;
+        let guard = self.buffer_mgr.pin(blk)?;
         self.buffers.insert(blk.clone(), guard);
         self.pins.insert(blk.clone(), 1);
         Ok(())

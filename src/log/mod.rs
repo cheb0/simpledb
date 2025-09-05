@@ -155,6 +155,7 @@ impl<'a> LogIterator<'a> {
         self.current_pos < self.storage_mgr.block_size() || self.blk.number() > 0
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> io::Result<Vec<u8>> {
         if self.current_pos == self.storage_mgr.block_size() {
             let new_blk = BlockId::new(self.blk.file_name().to_string(), self.blk.number() - 1);
@@ -276,7 +277,7 @@ mod tests {
 
         let mut records = Vec::new();
         for i in 0..1000 {
-            let rec = format!("Record #{}", i).into_bytes();
+            let rec = format!("Record #{i}").into_bytes();
             records.push(rec);
         }
 
@@ -357,10 +358,10 @@ mod tests {
                 let mut lsns = Vec::new();
 
                 for i in 0..records_per_thread {
-                    let record = format!("Thread {} - Record {}", thread_id, i).into_bytes();
+                    let record = format!("Thread {thread_id} - Record {i}").into_bytes();
                     match log_mgr_clone.append(&record) {
                         Ok(lsn) => lsns.push((record, lsn)),
-                        Err(e) => panic!("Error appending record: {}", e),
+                        Err(e) => panic!("Error appending record: {e}"),
                     }
                 }
 

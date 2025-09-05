@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Index;
 use std::sync::{Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -181,7 +180,7 @@ impl LockTable {
     /// then the lock is removed. Otherwise, the lock value is decremented.
     pub fn unlock(&self, blk: &BlockId, tx_id: i32) {
         let mut locks = self.locks.lock().unwrap();
-        let mut lock_state = locks.get_mut(blk).expect(&format!("Unlocking but there is not entry for block {}", blk));
+        let lock_state = locks.get_mut(blk).expect(&format!("Unlocking but there is not entry for block {blk}"));
 
         lock_state.remove_tx_id(tx_id);
         if lock_state.is_empty() {

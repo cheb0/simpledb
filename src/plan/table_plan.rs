@@ -20,7 +20,7 @@ pub struct TablePlan {
 impl TablePlan {
     pub fn new(tblname: String, layout: Layout) -> DbResult<Self> {
         Ok(TablePlan {
-            tblname: tblname,
+            tblname,
             layout,
         })
     }

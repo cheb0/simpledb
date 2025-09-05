@@ -6,8 +6,9 @@ fn insert_some_rows(db: &SimpleDB) -> DbResult<()> {
     let tx = db.new_tx()?;
     
     for id in 0..50 {
+        let age = id + 20;
         db.planner().execute_update(
-            &format!("insert into test_table(id, name, age) values({}, 'Person{}', {})", id, id, id + 20),
+            &format!("insert into test_table(id, name, age) values({id}, 'Person{id}', {age})"),
             tx.clone(),
         )?;
     }
@@ -47,7 +48,7 @@ fn main() -> DbResult<()> {
     {
         let tx = db.new_write_tx()?;
         db.planner().execute_update(
-            &format!("insert into test_table(id, name, age) values({}, '{}', {})", 1, "Alice", 25),
+            "insert into test_table(id, name, age) values(1, 'Alice', 25)",
             tx.clone(),
         )?;
         tx.commit()?;
@@ -55,7 +56,7 @@ fn main() -> DbResult<()> {
     {
         let tx = db.new_write_tx()?;
         db.planner().execute_update(
-            &format!("insert into test_table(id, name, age) values({}, '{}', {})", 2, "Bob", 30),
+            "insert into test_table(id, name, age) values(2, 'Bob', 30)",
             tx.clone(),
         )?;
         tx.commit()?;
@@ -63,7 +64,7 @@ fn main() -> DbResult<()> {
     {
         let tx = db.new_write_tx()?;
         db.planner().execute_update(
-            &format!("insert into test_table(id, name, age) values({}, '{}', {})", 3, "John", 40),
+            "insert into test_table(id, name, age) values(3, 'John', 40)",
             tx.clone(),
         )?;
         tx.commit()?;

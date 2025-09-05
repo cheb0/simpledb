@@ -120,7 +120,7 @@ impl SimpleDB {
         )
     }
 
-    pub fn buffer_mgr<'a>(&'a self) -> &'a BufferMgr {
+    pub fn buffer_mgr(&self) -> &BufferMgr {
         &self.buffer_mgr
     }
 

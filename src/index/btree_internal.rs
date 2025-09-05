@@ -104,9 +104,9 @@ impl<'tx> BTreeInternal<'tx> {
         drop(child_internal_node);
         match new_entry {
             Some(entry) => {
-                return self.insert_entry(entry);
+                self.insert_entry(entry)
             }
-            None => return Ok(None),
+            None => Ok(None),
         }
     }
 
@@ -129,22 +129,17 @@ impl<'tx> BTreeInternal<'tx> {
         let split_point = self.contents.get_number_of_recs()? / 2;
         let split_record = self.contents.get_data_value(split_point)?;
         let new_block_id = self.contents.split(split_point, page_type)?;
-        return Ok(Some(InternalNodeEntry {
+        Ok(Some(InternalNodeEntry {
             dataval: split_record,
             block_num: new_block_id.number() as usize,
-        }));
+        }))
     }
 
     /// This method will find the child block for a given search key in a [BTreeInternal] node
     /// It will search for the rightmost slot before the search key
     /// If the search key is found in the slot, it will return the next slot
     fn find_child_block(&self, search_key: &Constant) -> DbResult<BlockId> {
-        let mut slot = match self.contents.find_slot_before(&search_key)? {
-            Some(slot) => slot,
-            None => 0,
-        };
-        // let next_v = self.contents.get_data_value(slot + 1)?;
-        // println!("block_id: {:?}, search_key: {:?}, slot: {}, next_v; {:?}", self.contents.block_id(), search_key.clone(), slot, next_v);
+        let mut slot = self.contents.find_slot_before(search_key)?.unwrap_or_default();
 
         if slot + 1 < self.contents.get_number_of_recs()?
             && self.contents.get_data_value(slot + 1)? == *search_key
@@ -242,7 +237,7 @@ mod tests {
         assert!(split_entry.block_num > 0); // Should be a new block number
 
         // Verify middle key was chosen for split
-        let mid_val = ((block_num + 1) / 2) as i32;
+        let mid_val = (block_num + 1) / 2;
         assert_eq!(split_entry.dataval, Constant::Int(mid_val));
         Ok(())
     }

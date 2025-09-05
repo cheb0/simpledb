@@ -136,7 +136,7 @@ mod tests {
         {
             let tx = db.new_tx()?;
             let cnt = planner.execute_update(
-                & format!("UPDATE users SET age = 30 WHERE id = 2"),
+                "UPDATE users SET age = 30 WHERE id = 2",
                 tx.clone(),
             )?;
             assert_eq!(cnt, 1);
@@ -148,7 +148,7 @@ mod tests {
             let plan = planner.create_query_plan("SELECT id, name, age FROM users WHERE id = 2", tx.clone())?;
             let mut scan = plan.open(tx.clone());
             scan.before_first()?;
-            assert_eq!(true, scan.next()?);
+            assert!(scan.next()?);
             assert_eq!(30, scan.get_int("age")?);
             tx.commit()?;
         }

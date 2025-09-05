@@ -19,7 +19,7 @@ pub struct TempSimpleDB {
 impl TempSimpleDB {
     /// Consumes self and drops the current database. Opens a new database in the same directory with the same config. Transfers
     /// ownership of TempDir instance.
-    pub fn reopen<'b>(mut self) -> DbResult<TempSimpleDB> {
+    pub fn reopen(mut self) -> DbResult<TempSimpleDB> {
         let tmp_dir = self.dir.take();
         let cfg = self.cfg.clone();
 
@@ -29,7 +29,7 @@ impl TempSimpleDB {
         Ok(TempSimpleDB {
             db: Some(new_db),
             dir: tmp_dir,
-            cfg: cfg,
+            cfg,
         })
     }
 }
@@ -38,12 +38,12 @@ impl Deref for TempSimpleDB {
     type Target = SimpleDB;
 
     fn deref(&self) -> &Self::Target {
-        return &self.db.as_ref().unwrap();
+        self.db.as_ref().unwrap()
     }
 }
 
 // Takes out of Option<SimpleDB> which means db is destroyed before temp_dir
-impl<'a> Drop for TempSimpleDB {
+impl Drop for TempSimpleDB {
     fn drop(&mut self) {
         // TODO check drop order
         self.db.take();
@@ -51,7 +51,7 @@ impl<'a> Drop for TempSimpleDB {
 }
 
 pub fn temp_db() -> DbResult<TempSimpleDB> {
-    return temp_db_with_cfg(|cfg| cfg);
+    temp_db_with_cfg(|cfg| cfg)
 }
 
 pub fn temp_db_with_cfg(
@@ -63,9 +63,9 @@ pub fn temp_db_with_cfg(
     cfg = cfg_updater(cfg);
 
     let db = SimpleDB::with_config(cfg.clone())?;
-    return Ok(TempSimpleDB {
+    Ok(TempSimpleDB {
         db: Some(db),
         dir: Some(temp_dir),
-        cfg: cfg,
-    });
+        cfg,
+    })
 }

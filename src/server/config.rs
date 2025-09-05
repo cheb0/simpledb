@@ -28,13 +28,15 @@ pub struct MemStorageMgrConfig {
 }
 
 impl MemStorageMgrConfig {
-    pub fn new() -> Self {
-        Self { block_size: 4096 }
-    }
-
     pub fn block_size(mut self, block_size: usize) -> Self {
         self.block_size = block_size;
         self
+    }
+}
+
+impl Default for MemStorageMgrConfig {
+    fn default() -> Self {
+        Self { block_size: 4096 }
     }
 }
 
@@ -51,7 +53,7 @@ impl StorageMgrConfig {
     }
 
     pub fn mem() -> Self {
-        StorageMgrConfig::Mem(MemStorageMgrConfig::new())
+        StorageMgrConfig::Mem(MemStorageMgrConfig::default())
     }
 
     /// Get the block size from the configuration

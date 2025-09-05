@@ -66,9 +66,9 @@ pub fn run_person_search_benchmark(db: &mut SimpleDB) -> DbResult<SearchResults>
 
         for i in 0..NUM_SEARCHES {
             let search_id = rng.random_range(1..=NUM_PERSONS);
-            let expected_name = format!("Person{}", search_id);
+            let expected_name = format!("Person{search_id}");
 
-            let select_sql = format!("SELECT name FROM Person WHERE id = {}", search_id);
+            let select_sql = format!("SELECT name FROM Person WHERE id = {search_id}");
             let plan = db.planner().create_query_plan(&select_sql, tx.clone())?;
             let mut scan = plan.open(tx.clone());
 

@@ -27,7 +27,7 @@ pub struct BTreeIndex<'tx> {
 
 impl<'tx> BTreeIndex<'tx> {
     pub fn new(tx: Transaction<'tx>, index_name: &str, leaf_layout: Layout) -> DbResult<Self> {
-        let leaf_table_name = format!("{}leaf", index_name);
+        let leaf_table_name = format!("{index_name}leaf");
         if tx.size(&leaf_table_name)? == 0 {
             let block_id = tx.append(&leaf_table_name)?;
             let btree_page = BTreePage::new(tx.clone(), block_id, leaf_layout.clone())?;
@@ -35,7 +35,7 @@ impl<'tx> BTreeIndex<'tx> {
         }
 
         //  Create the internal file with the schema required if it does not exist
-        let internal_table_name = format!("{}internal", index_name);
+        let internal_table_name = format!("{index_name}internal");
         let mut internal_schema = Schema::new();
         internal_schema.add_from_schema(IndexInfo::BLOCK_NUM_FIELD, leaf_layout.schema());
         internal_schema.add_from_schema(IndexInfo::DATA_FIELD, leaf_layout.schema());
@@ -73,7 +73,7 @@ impl<'tx> fmt::Display for BTreeIndex<'tx> {
         writeln!(f, "Leaf table: {}", self.leaf_table_name)?;
 
         let tx = self.tx.clone();
-        let internal_cnt = tx.size(&self.root_block.file_name()).unwrap();
+        let internal_cnt = tx.size(self.root_block.file_name()).unwrap();
 
         for i in 0..internal_cnt {
             let page = BTreeInternal::new(
@@ -83,7 +83,7 @@ impl<'tx> fmt::Display for BTreeIndex<'tx> {
                 self.root_block.file_name().to_string(),
             )
             .unwrap();
-            writeln!(f, "{}", page)?;
+            writeln!(f, "{page}")?;
         }
 
         let leaf_cnt = tx.size(&self.leaf_table_name).unwrap();
@@ -97,7 +97,7 @@ impl<'tx> fmt::Display for BTreeIndex<'tx> {
                 self.leaf_table_name.to_string(),
             )
             .unwrap();
-            writeln!(f, "{}", page)?;
+            writeln!(f, "{page}")?;
         }
 
         Ok(())
@@ -203,7 +203,7 @@ mod tests {
         let tx = db.new_tx()?;
         let layout = create_test_layout();
         let index_name = "test";
-        BTreeIndex::new(tx.clone(), &index_name, layout)
+        BTreeIndex::new(tx.clone(), index_name, layout)
     }
 
     #[test]
@@ -336,7 +336,7 @@ mod tests {
                 let rid = index.get_data_rid()?;
 
                 let expected_rid = RID::new((i / 100) as i32, i % 100);
-                assert_eq!(rid, expected_rid, "RID mismatch for key {}", key);
+                assert_eq!(rid, expected_rid, "RID mismatch for key {key}");
             } else {
                 missing_keys.push(key);
             }
@@ -363,7 +363,7 @@ mod tests {
         ];
         for &key in &non_existent_keys {
             index.before_first(&Constant::Int(key))?;
-            assert!(!index.next()?, "Key {} should not exist in the index", key);
+            assert!(!index.next()?, "Key {key} should not exist in the index");
         }
 
         Ok(())
@@ -399,9 +399,9 @@ mod tests {
                 let rid = index.get_data_rid()?;
 
                 let expected_rid = RID::new((i / 100) as i32, i % 100);
-                assert_eq!(rid, expected_rid, "RID mismatch for key {}", key);
+                assert_eq!(rid, expected_rid, "RID mismatch for key {key}");
             } else {
-                assert!(false, "Key {} not found", key);
+                assert!(false, "Key {key} not found");
             }
         }
 
@@ -415,14 +415,12 @@ mod tests {
 
             if keys_to_delete.contains(&key) {
                 assert!(!index.next().unwrap(), "Should never find a deleted entry");
+            } else if index.next()? {
+                let rid = index.get_data_rid()?;
+                let expected_rid = RID::new((i / 100) as i32, i % 100);
+                assert_eq!(rid, expected_rid, "RID mismatch for key {}", key);
             } else {
-                if index.next()? {
-                    let rid = index.get_data_rid()?;
-                    let expected_rid = RID::new((i / 100) as i32, i % 100);
-                    assert_eq!(rid, expected_rid, "RID mismatch for key {}", key);
-                } else {
-                    assert!(false, "Key {} not found", key);
-                }
+                assert!(false, "Key {} not found", key);
             }
         }
 

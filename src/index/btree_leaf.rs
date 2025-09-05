@@ -55,6 +55,8 @@ impl<'tx> BTreeLeaf<'tx> {
     /// Advances to the next record that matches the search key
     /// If we've reached the end of the current page, attempts to follow the overflow chain
     /// Returns Some(()) if a matching record is found, None otherwise
+    // TODO currently scan looks like Iterator
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> DbResult<Option<()>> {
         self.current_slot = {
             match self.current_slot {
@@ -63,7 +65,7 @@ impl<'tx> BTreeLeaf<'tx> {
             }
         };
         if self.current_slot.unwrap() >= self.contents.get_number_of_recs()? {
-            return self.try_overflow();
+            self.try_overflow()
         } else if self.contents.get_data_value(self.current_slot.unwrap())? == self.search_key {
             return Ok(Some(()));
         } else {
@@ -75,13 +77,13 @@ impl<'tx> BTreeLeaf<'tx> {
     /// Returns Ok(()) if the record was found and deleted, error otherwise
     /// Requires that current_slot is initialized
     pub fn delete(&mut self, rid: RID) -> DbResult<()> {
-        while let Some(_) = self.next()? {
+        while self.next()?.is_some() {
             if self.contents.get_rid(self.current_slot.unwrap())? == rid {
                 self.contents.delete(self.current_slot.unwrap())?;
                 return Ok(());
             }
         }
-        return Err(crate::DbError::NotFound);
+        Err(crate::DbError::NotFound)
     }
 
     /// This method will attempt to insert an entry into a [BTreeLeaf] page

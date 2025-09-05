@@ -17,7 +17,7 @@ pub struct TableScan<'tx> {
 
 impl<'tx> TableScan<'tx> {
     pub fn new(tx: Transaction<'tx>, table_name: &str, layout: Layout) -> DbResult<Self> {
-        let file_name = format!("{}.tbl", table_name);
+        let file_name = format!("{table_name}.tbl");
         let mut table_scan = TableScan {
             tx,
             layout,
@@ -174,7 +174,7 @@ impl<'tx> UpdateScan for TableScan<'tx> {
         let mut inserted_at_slot = current_page.insert_after(current_slot)?;
 
         loop {
-            if !inserted_at_slot.is_none() {
+            if inserted_at_slot.is_some() {
                 self.current_slot = inserted_at_slot;
                 return Ok(());
             }
@@ -215,7 +215,7 @@ impl<'tx> UpdateScan for TableScan<'tx> {
 
         let blk = BlockId::new(self.file_name.clone(), row_id.block_number());
         self.record_page = Some(RecordPage::new(self.tx.clone(), blk, self.layout.clone())?);
-        self.current_slot = Some(row_id.slot() as usize);
+        self.current_slot = Some(row_id.slot());
         Ok(())
     }
 }
@@ -246,7 +246,7 @@ mod tests {
                 
         for i in 0..num_keys {
             let mut scan = TableScan::new(tx.clone(), "test_table", layout.clone())?;
-            scan.insert().expect(&format!("Failed to insert at {i}"));
+            scan.insert().unwrap_or_else(|_| panic!("Failed to insert at {i}"));
             scan.set_int("id", i)?;
             scan.set_string("name", &format!("Entry{i}"))?;
         }
@@ -282,7 +282,7 @@ mod tests {
                 let tx = db.new_tx()?;
                 {
                     let mut scan = TableScan::new(tx.clone(), "test_table", layout.clone())?;
-                    scan.insert().expect(&format!("Failed to insert at {i}"));
+                    scan.insert().unwrap_or_else(|_| panic!("Failed to insert at {i}"));
                     scan.set_int("id", i)?;
                     scan.set_string("name", &format!("Entry{i}"))?;
                 }
