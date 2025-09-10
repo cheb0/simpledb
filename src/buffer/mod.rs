@@ -1,6 +1,7 @@
 pub mod buffer;
 pub mod buffer_list;
 pub mod buffer_mgr;
+pub mod replacer;
 
 pub use buffer::Buffer;
 pub use buffer_list::BufferList;

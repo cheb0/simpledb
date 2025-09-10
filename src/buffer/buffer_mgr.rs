@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Condvar, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
+use crate::buffer::replacer::{DumbReplacer, Replacer};
 use crate::buffer::Buffer;
 use crate::error::{DbError, DbResult};
 use crate::log::LogMgr;
@@ -23,6 +24,7 @@ struct BufferMgrInner {
     pins: Box<[usize]>,
     available_cnt: usize,
     block_to_buffer_idx: HashMap<BlockId, usize>,
+    replacer: DumbReplacer,
 }
 
 pub struct PinnedBufferGuard<'a> {
@@ -46,6 +48,7 @@ impl BufferMgr {
                 pins: vec![0; buffer_cnt].into_boxed_slice(),
                 available_cnt: buffer_cnt,
                 block_to_buffer_idx: HashMap::new(),
+                replacer: DumbReplacer::new(buffer_cnt),
             }),
             buffers: buffers.into_boxed_slice(),
             condvar: Condvar::new(),
@@ -100,13 +103,17 @@ impl BufferMgr {
                 inner.available_cnt -= 1;
             }
             inner.pins[idx] += 1;
+            inner.replacer.record_access(idx);
+            inner.replacer.set_evictable(idx, false);
             return Ok(Some(idx));
         }
 
-        if let Some(idx) = self.find_unpinned_buffer(inner) {
+        if let Some(idx) = inner.replacer.evict() {
             inner.block_to_buffer_idx.insert(blk.clone(), idx);
             inner.pins[idx] = 1;
             inner.available_cnt -= 1;
+            inner.replacer.set_evictable(idx, false);
+            inner.replacer.record_access(idx);
 
             let mut buffer = self.buffers[idx].write().unwrap();
             if let Some(block) = buffer.block() {
@@ -120,16 +127,6 @@ impl BufferMgr {
         Ok(None)
     }
 
-    fn find_unpinned_buffer(&self, inner: &BufferMgrInner) -> Option<usize> {
-        // TODO O(N)
-        for (i, &pin_cnt) in inner.pins.iter().enumerate() {
-            if pin_cnt == 0 {
-                return Some(i);
-            }
-        }
-        None
-    }
-
     fn unpin_internal(&self, idx: usize) {
         let mut inner = self.inner.lock().unwrap();
 
@@ -137,6 +134,7 @@ impl BufferMgr {
 
         if inner.pins[idx] == 0 {
             inner.available_cnt += 1;
+            inner.replacer.set_evictable(idx, true);
             self.condvar.notify_all();
         }
     }
