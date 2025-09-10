@@ -8,9 +8,10 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::error::DbResult;
+use crate::utils::Stats;
 
 /// Trait for file management operations.
 /// This allows for different implementations (e.g., basic file system, in-memory, etc.)
@@ -40,11 +41,12 @@ pub struct FileStorageMgr {
     db_directory: PathBuf,
     block_size: usize,
     is_new: bool,
+    stats: Option<Arc<Stats>>,
     open_files: Mutex<HashMap<String, File>>,
 }
 
 impl FileStorageMgr {
-    pub fn new<P: AsRef<Path>>(db_directory: P, block_size: usize) -> DbResult<Self> {
+    pub fn new<P: AsRef<Path>>(db_directory: P, block_size: usize, stats: Option<Arc<Stats>>) -> DbResult<Self> {
         let db_path = db_directory.as_ref().to_path_buf();
 
         let is_new = if db_path.exists() {
@@ -74,6 +76,7 @@ impl FileStorageMgr {
             block_size,
             is_new,
             open_files: Mutex::new(HashMap::new()),
+            stats,
         })
     }
 
@@ -126,6 +129,10 @@ impl StorageMgr for FileStorageMgr {
         let buffer = page.contents_mut();
         file.read_exact(buffer)?;
 
+        if let Some(stats) = &self.stats {
+            stats.storage_mgr_stats.pages_read.inc();
+        }
+
         Ok(())
     }
 
@@ -134,9 +141,12 @@ impl StorageMgr for FileStorageMgr {
         let pos = blk.number() as u64 * self.block_size as u64;
         file.seek(SeekFrom::Start(pos))?;
 
-        // Write the page's buffer to disk
         file.write_all(page.contents())?;
         file.flush()?;
+
+        if let Some(stats) = &self.stats {
+            stats.storage_mgr_stats.pages_written.inc();
+        }
 
         Ok(())
     }
@@ -280,7 +290,7 @@ mod tests {
     #[test]
     fn test_append_and_length() {
         let temp_dir = tempdir().unwrap();
-        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400).unwrap();
+        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400, None).unwrap();
 
         let filename = "testfile";
         let blk1 = storage_mgr.append(filename).unwrap();
@@ -297,7 +307,7 @@ mod tests {
     #[test]
     fn test_read_write() {
         let temp_dir = tempdir().unwrap();
-        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400).unwrap();
+        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400, None).unwrap();
 
         let filename = "testfile";
         let blk = storage_mgr.append(filename).unwrap();
@@ -318,7 +328,7 @@ mod tests {
     #[test]
     fn test_read_write_multiple_pages() {
         let temp_dir = tempdir().unwrap();
-        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400).unwrap();
+        let storage_mgr = FileStorageMgr::new(temp_dir.path(), 400, None).unwrap();
 
         let file_name = "testfile";
         let blk1 = storage_mgr.append(file_name).unwrap();
@@ -353,7 +363,7 @@ mod tests {
     fn test_storage_mgr_trait() {
         let temp_dir = tempdir().unwrap();
         let storage_mgr: Box<dyn StorageMgr> =
-            Box::new(FileStorageMgr::new(temp_dir.path(), 400).unwrap());
+            Box::new(FileStorageMgr::new(temp_dir.path(), 400, None).unwrap());
 
         let filename = "testfile";
         let blk = storage_mgr.append(filename).unwrap();
@@ -467,7 +477,7 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let non_existent_path = temp_dir.path().join("non_existent_db");
 
-        let storage_mgr = FileStorageMgr::new(&non_existent_path, 400)?;
+        let storage_mgr = FileStorageMgr::new(&non_existent_path, 400, None)?;
         assert!(
             storage_mgr.is_new(),
             "Non-existent directory should be detected as new database"
@@ -476,7 +486,7 @@ mod tests {
         let empty_db_path = temp_dir.path().join("empty_db");
         fs::create_dir_all(&empty_db_path)?;
 
-        let storage_mgr = FileStorageMgr::new(&empty_db_path, 400)?;
+        let storage_mgr = FileStorageMgr::new(&empty_db_path, 400, None)?;
         assert!(
             storage_mgr.is_new(),
             "Empty directory should be detected as new database"
@@ -488,7 +498,7 @@ mod tests {
         let dummy_file = existing_db_path.join("dummy.txt");
         fs::write(&dummy_file, "dummy content")?;
 
-        let storage_mgr = FileStorageMgr::new(&existing_db_path, 400)?;
+        let storage_mgr = FileStorageMgr::new(&existing_db_path, 400, None)?;
         assert!(
             !storage_mgr.is_new(),
             "Directory with files should NOT be detected as new database"

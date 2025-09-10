@@ -177,7 +177,7 @@ mod tests {
         fn new(buffer_count: usize) -> DbResult<Self> {
             let temp_dir = TempDir::new().unwrap();
             let storage_mgr: Arc<dyn StorageMgr> =
-                Arc::new(FileStorageMgr::new(temp_dir.path(), 400)?);
+                Arc::new(FileStorageMgr::new(temp_dir.path(), 400, None)?);
             let log_mgr = Arc::new(LogMgr::new(Arc::clone(&storage_mgr), "testlog")?);
             let buffer_mgr = Arc::new(BufferMgr::new(
                 Arc::clone(&storage_mgr),

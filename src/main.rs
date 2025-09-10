@@ -1,3 +1,5 @@
+use std::sync::atomic::Ordering;
+
 use simpledb::{server::Config, DbResult, SimpleDB};
 use tempfile::TempDir;
 
@@ -44,6 +46,12 @@ fn main() -> DbResult<()> {
 
     insert_some_rows(&db).unwrap();
 
+    println!(
+        "Before. Pages read: {}, written: {}", 
+        db.stats().storage_mgr_stats.pages_read.get(), 
+        db.stats().storage_mgr_stats.pages_written.get()
+    );
+
     let start_time = std::time::Instant::now();
     {
         let tx = db.new_write_tx()?;
@@ -71,6 +79,11 @@ fn main() -> DbResult<()> {
     }
     let duration = start_time.elapsed();
     println!("Insert took {} us", duration.as_micros());
+    println!(
+        "Before. Pages read: {}, written: {}", 
+        db.stats().storage_mgr_stats.pages_read.get(), 
+        db.stats().storage_mgr_stats.pages_written.get()
+    );
 
     Ok(())
 }

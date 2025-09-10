@@ -10,6 +10,7 @@ use crate::plan::Planner;
 use crate::storage::{FileStorageMgr, MemStorageMgr, StorageMgr};
 use crate::tx::{Transaction, TransactionIntent};
 use crate::tx::concurrency::LockTable;
+use crate::utils::Stats;
 
 use super::Config;
 
@@ -20,13 +21,16 @@ pub struct SimpleDB {
     planner: Option<Planner>,
     metadata_mgr: Option<Arc<MetadataMgr>>,
     lock_table: Arc<LockTable>,
+    stats: Arc<Stats>,
 }
 
 impl SimpleDB {
     pub fn with_config(config: Config) -> DbResult<Self> {
+        let stats = Arc::new(Stats::new());
+
         let storage_mgr: Arc<dyn StorageMgr> = match &config.storage_mgr {
             crate::server::config::StorageMgrConfig::File(file_config) => Arc::new(
-                FileStorageMgr::new(&file_config.db_directory, file_config.block_size)?,
+                FileStorageMgr::new(&file_config.db_directory, file_config.block_size, Some(Arc::clone(&stats)))?,
             ),
             crate::server::config::StorageMgrConfig::Mem(mem_config) => {
                 Arc::new(MemStorageMgr::new(mem_config.block_size))
@@ -53,6 +57,7 @@ impl SimpleDB {
             metadata_mgr: None,
             planner: None,
             lock_table,
+            stats,
         };
 
         let tx = db.new_tx()?;
@@ -132,6 +137,10 @@ impl SimpleDB {
         // planner must be initialized
         self.planner.as_ref().unwrap()
     }
+
+    pub fn stats(&self) -> &Stats {
+        &self.stats
+    } 
 }
 
 #[cfg(test)]
