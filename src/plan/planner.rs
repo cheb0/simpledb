@@ -1,18 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    DbResult,
-    index::Index,
-    metadata::MetadataMgr,
-    parse::{Parser, Statement},
-    plan::{
-        Plan,
-        project_plan::ProjectPlan,
-        table_plan::{TablePlan, TablePlanner},
-    },
-    query::{Scan, UpdateScan},
-    record::{Schema, TableScan},
-    tx::Transaction,
+    index::Index, metadata::MetadataMgr, parse::{Parser, Statement, Values}, plan::{
+        project_plan::ProjectPlan, table_plan::{TablePlan, TablePlanner}, Plan
+    }, query::{Scan, UpdateScan}, record::{Schema, TableScan}, tx::Transaction, DbResult
 };
 
 pub struct Planner {
@@ -98,7 +89,7 @@ impl Planner {
         &self,
         table_name: &str,
         fields: &[String],
-        values: &[crate::query::Constant],
+        values: &Values,
         tx: Transaction<'_>,
     ) -> DbResult<i32> {
         let layout = self.metadata_mgr.get_layout(table_name, tx.clone())?;
@@ -109,7 +100,14 @@ impl Planner {
         let rid = scan.get_rid()?;
         let indexes = self.metadata_mgr.get_index_info(table_name, tx.clone())?;
 
-        for (field, value) in fields.iter().zip(values.iter()) {
+        let value_constants = match values {
+            Values::Constants { values } => {
+                values
+            },
+            Values::Placeholders => panic!("Can not execute insert with placeholders"),
+        };
+
+        for (field, value) in fields.iter().zip(value_constants.iter()) {
             scan.set_val(field, value.clone())?;
 
             if let Some(index_info) = indexes.get(field) {

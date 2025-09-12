@@ -21,7 +21,7 @@ pub enum Statement {
     Insert {
         table_name: String,
         fields: Vec<String>,
-        values: Vec<Constant>,
+        values: Values,
     },
     Update {
         table_name: String,
@@ -36,6 +36,14 @@ pub enum Statement {
     },
 }
 
+#[derive(Debug, Clone)]
+pub enum Values {
+    Constants {
+        values: Vec<Constant>,
+    },
+    Placeholders
+}
+
 pub struct Parser {
     dialect: GenericDialect,
 }
@@ -43,7 +51,7 @@ pub struct Parser {
 impl Parser {
     pub fn new() -> Self {
         Parser {
-            dialect: GenericDialect::default(),
+            dialect: GenericDialect,
         }
     }
 
@@ -97,16 +105,10 @@ impl Parser {
                     schema.add_string_field(&field_name, length as usize);
                 }
                 DataType::Varchar(Some(CharacterLength::Max)) => {
-                    return Err(DbError::Schema(format!(
-                        "VARCHAR(MAX) is not supported for column {}",
-                        field_name
-                    )));
+                    return Err(DbError::Schema(format!("VARCHAR(MAX) is not supported for column {field_name}")));
                 }
                 _ => {
-                    return Err(DbError::Schema(format!(
-                        "Unsupported data type for column {}",
-                        field_name
-                    )));
+                    return Err(DbError::Schema(format!("Unsupported data type for column {field_name}")));
                 }
             }
         }
@@ -159,6 +161,7 @@ impl Parser {
             .collect::<Vec<String>>();
         let source = insert.source.as_ref();
 
+        // TODO looks like shit, need to rewrite
         let values = match source {
             Some(query) => match &*query.body {
                 SetExpr::Values(values) => {
@@ -167,22 +170,35 @@ impl Parser {
                     }
 
                     let row = &values.rows[0];
-                    row.iter()
-                        .map(|expr| match expr {
-                            sqlparser::ast::Expr::Value(value) => match &value.value {
-                                Value::SingleQuotedString(s) => Ok(Constant::String(s.clone())),
-                                Value::Number(n, _) => {
-                                    Ok(Constant::Int(n.parse().map_err(|_| {
-                                        DbError::Schema(format!("Invalid integer value: {n}"))
-                                    })?))
+                    let first_expr = &row[0];
+
+                    match first_expr {
+                        sqlparser::ast::Expr::Value(value) => {
+                            match value.value {
+                                Value::Placeholder(_) => Values::Placeholders,
+                                _ => {
+                                    let constants = row.iter()
+                                    .map(|expr| match expr {
+                                        sqlparser::ast::Expr::Value(value) => match &value.value {
+                                            Value::SingleQuotedString(s) => Ok(Constant::String(s.clone())),
+                                            Value::Number(n, _) => {
+                                                Ok(Constant::Int(n.parse().map_err(|_| {
+                                                    DbError::Schema(format!("Invalid integer value: {n}"))
+                                                })?))
+                                            }
+                                            _ => Err(DbError::Schema("Unsupported value type".to_string())),
+                                        },
+                                        _ => Err(DbError::Schema("Unsupported value type in INSERT statement".to_string())),
+                                    })
+                                    .collect::<DbResult<Vec<Constant>>>()?;
+                                    Values::Constants { values: constants }
                                 }
-                                _ => Err(DbError::Schema(format!("Unsupported value type"))),
-                            },
-                            _ => Err(DbError::Schema(format!(
-                                "Unsupported value type in INSERT statement"
-                            ))),
-                        })
-                        .collect::<DbResult<Vec<Constant>>>()?
+                            }
+                        }
+                        _ => {
+                            panic!("");
+                        }
+                    }
                 }
                 _ => {
                     return Err(DbError::Schema(
@@ -251,7 +267,7 @@ impl Parser {
     }
 
     fn parse_select(&self, query: &SetExpr) -> DbResult<Statement> {
-        return match query {
+        match query {
             SetExpr::Select(select) => {
                 let fields = select
                     .projection
@@ -296,11 +312,11 @@ impl Parser {
                 })
             }
             _ => {
-                return Err(DbError::Schema(
+                Err(DbError::Schema(
                     "Only VALUES clause is supported for INSERT".to_string(),
-                ));
+                ))
             }
-        };
+        }
     }
 
     fn parse_where_clause(&self, expr: &sqlparser::ast::Expr) -> DbResult<Predicate> {
@@ -349,6 +365,12 @@ impl Parser {
                 "Unsupported expression in WHERE clause".to_string(),
             )),
         }
+    }
+}
+
+impl Default for Parser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -403,9 +425,38 @@ mod tests {
             } => {
                 assert_eq!(table_name, "test_table");
                 assert_eq!(fields, vec!["id", "name"]);
-                assert_eq!(values.len(), 2);
-                assert_eq!(values[0], Constant::Int(1));
-                assert_eq!(values[1], Constant::String("Alice".to_string()));
+
+                match values {
+                    Values::Constants { values } => {
+                        assert_eq!(values.len(), 2);
+                        assert_eq!(values[0], Constant::Int(1));
+                        assert_eq!(values[1], Constant::String("Alice".to_string()));
+                    },
+                    Values::Placeholders => panic!("Unexpected placeholders"),
+                }
+            }
+            _ => panic!("Unexpected statement"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_prepared_insert() -> DbResult<()> {
+        let parser = Parser::new();
+        let sql = "INSERT INTO test_table (id, name) VALUES (?, ?)";
+
+        let stmt = parser.parse(sql)?;
+
+        match stmt {
+            Statement::Insert {
+                table_name,
+                fields,
+                values,
+            } => {
+                assert_eq!(table_name, "test_table");
+                assert_eq!(fields, vec!["id", "name"]);
+                assert!(matches!(values, Values::Placeholders));
             }
             _ => panic!("Unexpected statement"),
         }
