@@ -250,7 +250,7 @@ mod tests {
         let blk_clone = blk.clone();
         let handle = thread::spawn(move || {
             let result = lock_table_clone.lock_x(&blk_clone, 1);
-            assert!(!result.is_ok());
+            assert!(result.is_err());
         });
 
         handle.join().unwrap();

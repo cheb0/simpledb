@@ -48,7 +48,7 @@ pub fn run_person_search_benchmark(db: &mut SimpleDB) -> DbResult<SearchResults>
                 i + 1
             );
 
-            db.planner().execute_update(&insert_sql, tx.clone()).expect(&format!("err insert at index {i}"));
+            db.planner().execute_update(&insert_sql, tx.clone()).unwrap_or_else(|_| panic!("err insert at index {i}"));
         }
 
         tx.commit()?;

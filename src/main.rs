@@ -1,5 +1,3 @@
-use std::sync::atomic::Ordering;
-
 use simpledb::{server::Config, DbResult, SimpleDB};
 use tempfile::TempDir;
 

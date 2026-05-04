@@ -58,7 +58,7 @@ mod tests {
         assert_eq!(deserialized.op(), COMMIT_FLAG);
         assert_eq!(deserialized.tx_id(), 123);
 
-        let commit = (&*deserialized)
+        let commit = deserialized
             .as_any()
             .downcast_ref::<CommitRecord>()
             .expect("Failed to downcast to CommitRecord");

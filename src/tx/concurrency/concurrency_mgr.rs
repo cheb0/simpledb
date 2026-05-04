@@ -16,7 +16,7 @@ pub struct ConcurrencyMgr {
 impl ConcurrencyMgr {
     pub fn new(lock_table: Arc<LockTable>) -> Self {
         Self {
-            lock_table: lock_table,
+            lock_table,
             locks: HashMap::new(),
         }
     }

@@ -401,7 +401,7 @@ mod tests {
                 let expected_rid = RID::new((i / 100) as i32, i % 100);
                 assert_eq!(rid, expected_rid, "RID mismatch for key {key}");
             } else {
-                assert!(false, "Key {key} not found");
+                panic!("Key {} not found", key);
             }
         }
 
@@ -420,7 +420,7 @@ mod tests {
                 let expected_rid = RID::new((i / 100) as i32, i % 100);
                 assert_eq!(rid, expected_rid, "RID mismatch for key {}", key);
             } else {
-                assert!(false, "Key {} not found", key);
+                panic!("Key {} not found", key);
             }
         }
 

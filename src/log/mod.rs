@@ -114,7 +114,7 @@ impl LogMgr {
     }
 
     /// Returns an iterator over all log records, starting with the most recent.
-    pub fn iterator(&self) -> io::Result<LogIterator> {
+    pub fn iterator(&'_ self) -> io::Result<LogIterator<'_>> {
         let mut inner = self.inner.lock().unwrap();
         self.flush_internal(&mut inner)?;
         LogIterator::new(&self.storage_mgr, inner.current_blk.clone())

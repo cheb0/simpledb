@@ -35,7 +35,7 @@ impl From<i32> for PageType {
             if abs_val == 1 {
                 PageType::Leaf(None)
             } else {
-                PageType::Leaf(Some((abs_val - 2) as usize))
+                PageType::Leaf(Some(abs_val - 2))
             }
         }
     }
@@ -197,7 +197,7 @@ impl<'tx> BTreePage<'tx> {
     pub fn insert_leaf(&self, slot: usize, value: Constant, rid: RID) -> DbResult<()> {
         self.insert(slot)?;
         self.set_value(slot, IndexInfo::DATA_FIELD, value)?;
-        self.set_int(slot, IndexInfo::BLOCK_NUM_FIELD, rid.block_number() as i32)?;
+        self.set_int(slot, IndexInfo::BLOCK_NUM_FIELD, rid.block_number())?;
         self.set_int(slot, IndexInfo::ID_FIELD, rid.slot() as i32)?;
         Ok(())
     }

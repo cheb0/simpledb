@@ -130,7 +130,7 @@ impl SimpleDB {
     }
 
     pub fn metadata_mgr(&self) -> &MetadataMgr {
-        &*self.metadata_mgr.as_ref().unwrap()
+        self.metadata_mgr.as_ref().unwrap()
     }
 
     pub fn planner(&self) -> &Planner {

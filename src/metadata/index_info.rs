@@ -9,7 +9,6 @@ pub struct IndexInfo {
     index_name: String,
     field_name: String,
     table_schema: Schema,
-    index_layout: Layout,
 }
 
 impl IndexInfo {
@@ -18,12 +17,11 @@ impl IndexInfo {
     pub const DATA_FIELD: &'static str = "dataval"; //  the data field
 
     pub fn new(index_name: String, field_name: String, table_schema: Schema) -> IndexInfo {
-        let index_layout = IndexInfo::create_idx_layout(&field_name, &table_schema);
+        // let index_layout = IndexInfo::create_idx_layout(&field_name, &table_schema);
         Self {
             index_name,
             field_name,
             table_schema,
-            index_layout,
         }
     }
 
