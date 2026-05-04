@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(deserialized.op(), START_FLAG);
         assert_eq!(deserialized.tx_id(), 789);
 
-        let start = (&*deserialized)
+        let start = deserialized
             .as_any()
             .downcast_ref::<StartRecord>()
             .expect("Failed to downcast to StartRecord");

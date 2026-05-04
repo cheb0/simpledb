@@ -71,7 +71,7 @@ mod tests {
         assert_eq!(deserialized.op(), SETSTRING_FLAG);
         assert_eq!(deserialized.tx_id(), 202);
 
-        let set_string = (&*deserialized)
+        let set_string = deserialized
             .as_any()
             .downcast_ref::<SetStringRecord>()
             .expect("Failed to downcast to SetStringRecord");

@@ -70,7 +70,7 @@ mod tests {
         assert_eq!(deserialized.op(), SETINT_FLAG);
         assert_eq!(deserialized.tx_id(), 101);
 
-        let set_int = (&*deserialized)
+        let set_int = deserialized
             .as_any()
             .downcast_ref::<SetIntRecord>()
             .expect("Failed to downcast to SetIntRecord");

@@ -7,14 +7,10 @@ use crate::{error::DbResult, tx::Transaction};
 
 use super::log_record::{CHECKPOINT_FLAG, LogRecord};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct CheckpointRecord {}
 
 impl CheckpointRecord {
-    pub fn new() -> Self {
-        CheckpointRecord {}
-    }
-
     pub fn to_bytes(&self) -> DbResult<Vec<u8>> {
         let mut result = vec![CHECKPOINT_FLAG as u8];
         result.extend(serialize(self)?);
@@ -55,7 +51,7 @@ mod tests {
         assert_eq!(deserialized.op(), CHECKPOINT_FLAG);
         assert_eq!(deserialized.tx_id(), -1);
 
-        (&*deserialized)
+        deserialized
             .as_any()
             .downcast_ref::<CheckpointRecord>()
             .expect("Failed to downcast to CheckpointRecord");

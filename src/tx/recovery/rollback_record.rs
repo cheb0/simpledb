@@ -63,7 +63,7 @@ mod tests {
         assert_eq!(deserialized.op(), ROLLBACK_FLAG);
         assert_eq!(deserialized.tx_id(), 42);
 
-        let rollback = (&*deserialized)
+        let rollback = deserialized
             .as_any()
             .downcast_ref::<RollbackRecord>()
             .expect("Failed to downcast to RollbackRecord");
