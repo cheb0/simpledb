@@ -25,9 +25,9 @@ impl IndexSelectPlan {
 impl Plan for IndexSelectPlan {
     fn open<'tx>(&self, tx: Transaction<'tx>) -> Box<dyn Scan + 'tx> {
         let index_layout =
-            IndexInfo::create_idx_layout(&self.index_info.field_name(), &self.plan.schema());
+            IndexInfo::create_idx_layout(self.index_info.field_name(), &self.plan.schema());
         let index =
-            BTreeIndex::new(tx.clone(), &self.index_info.index_name(), index_layout).unwrap();
+            BTreeIndex::new(tx.clone(), self.index_info.index_name(), index_layout).unwrap();
         let scan = TableScan::new(
             tx.clone(),
             self.plan.table_name(),

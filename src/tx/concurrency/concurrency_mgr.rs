@@ -30,7 +30,7 @@ impl ConcurrencyMgr {
     }
 
     pub fn lock_x(&mut self, blk: &BlockId, tx_id: i32) -> DbResult<()> {
-        let current_lock = self.locks.get(&blk);
+        let current_lock = self.locks.get(blk);
         match current_lock {
             Some(LockType::Exclusive) => {
                 return Ok(());
@@ -133,7 +133,7 @@ mod tests {
                 
                 for _ in 0..OPERATIONS_PER_THREAD {
                     let block_num = rng.random_range(0..NUM_BLOCKS);
-                    let blk = BlockId::new(format!("stress_file"), block_num as i32);
+                    let blk = BlockId::new("stress_file".to_string(), block_num as i32);
                     let lock_start = Instant::now();
                     
                     concurrency_mgr.lock_x(&blk, 0).unwrap();

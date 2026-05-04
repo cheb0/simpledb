@@ -364,7 +364,7 @@ mod tests {
         db.metadata_mgr().create_index("name_idx", "test_table", "name", tx.clone())?;
 
         let result = db.planner().execute_update(
-            &format!("INSERT INTO test_table (id, name, age) VALUES (1, 'Bob', 30)"),
+            "INSERT INTO test_table (id, name, age) VALUES (1, 'Bob', 30)",
             tx.clone(),
         )?;
         assert_eq!(result, 1);
@@ -400,7 +400,7 @@ mod tests {
         db.metadata_mgr().create_table("test_table", &schema, tx.clone())?;
 
         let result = db.planner().execute_update(
-            &format!("INSERT INTO test_table (id, name, age) VALUES (1, 'Charlie', 35)"),
+            "INSERT INTO test_table (id, name, age) VALUES (1, 'Charlie', 35)",
             tx.clone(),
         )?;
         assert_eq!(result, 1);
