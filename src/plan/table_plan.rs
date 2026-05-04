@@ -10,6 +10,7 @@ use crate::record::layout::Layout;
 use crate::record::schema::Schema;
 use crate::tx::transaction::Transaction;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct TablePlan {
@@ -52,7 +53,7 @@ pub struct TablePlanner<'tx> {
     pred: Predicate,
     schema: Schema,
     indexes: HashMap<String, IndexInfo>,
-    tx: Transaction<'tx>,
+    _tx: PhantomData<Transaction<'tx>>,
 }
 
 impl<'tx> TablePlanner<'tx> {
@@ -72,7 +73,7 @@ impl<'tx> TablePlanner<'tx> {
             pred,
             schema,
             indexes,
-            tx: tx.clone(),
+            _tx: PhantomData,
         })
     }
 
